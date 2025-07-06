@@ -8,6 +8,9 @@
           <p class="page-subtitle">Manage all users in the system</p>
         </div>
         <div class="header-right">
+          <button @click="handleExportUserPerformance" class="btn btn-success" :disabled="exporting">
+            <i class="fas fa-download"></i> {{ exporting ? 'Exporting...' : 'Export Performance Data' }}
+          </button>
           <button @click="showCreateModal = true" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add New User
           </button>
@@ -270,7 +273,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { createUser as createUserAPI, updateUser as updateUserAPI, deleteUser as deleteUserAPI, listUsers } from '../../api';
+import { createUser as createUserAPI, updateUser as updateUserAPI, deleteUser as deleteUserAPI, listUsers, exportUserPerformance } from '../../api';
 import AdminLayout from './AdminLayout.vue';
 
 // Reactive data
@@ -278,6 +281,7 @@ const users = ref([]);
 const loading = ref(false);
 const creating = ref(false);
 const updating = ref(false);
+const exporting = ref(false);
 const searchQuery = ref('');
 const roleFilter = ref('');
 const currentPage = ref(1);
@@ -415,6 +419,41 @@ const getRoleBadgeClass = (role) => {
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   return new Date(dateString).toLocaleDateString();
+};
+
+const handleExportUserPerformance = async () => {
+  exporting.value = true;
+  try {
+    const response = await exportUserPerformance();
+    
+    if (response.ok) {
+      // Create a blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `user_performance_report_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      // Show success message
+      alert('User performance data exported successfully!');
+    } else {
+      const errorData = await response.json();
+      alert(`Export failed: ${errorData.error || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('Error exporting user performance:', error);
+    alert('Failed to export user performance data. Please try again.');
+  } finally {
+    exporting.value = false;
+  }
 };
 
 // Watch for filter changes

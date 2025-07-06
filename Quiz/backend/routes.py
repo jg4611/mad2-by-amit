@@ -1,8 +1,12 @@
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, jsonify, request, render_template, send_file
 from flask_jwt_extended import create_access_token, decode_token, get_jwt, jwt_required
 from models import db, bcrypt, Subject, Quiz, Question, Score, User, Chapter
 from rbac import role_required
 import datetime
+import csv
+import io
+import tempfile
+import os
 
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 
@@ -718,3 +722,90 @@ def debug_quizzes():
         debug_info['quizzes'].append(quiz_info)
     
     return jsonify(debug_info)
+
+# Export user performance data as CSV
+@routes.route('/api/export-user-performance', methods=['GET'])
+@role_required('admin')
+def export_user_performance():
+    try:
+        # Get all users with their performance data
+        users = User.query.all()
+        
+        # Create a temporary file to store CSV data
+        temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv', newline='')
+        
+        # Write CSV data
+        writer = csv.writer(temp_file)
+        
+        # Write header
+        writer.writerow([
+            'User ID',
+            'Full Name', 
+            'Email',
+            'Role',
+            'Qualification',
+            'Date of Birth',
+            'Total Quizzes Taken',
+            'Average Score (%)',
+            'Best Score (%)',
+            'Total Questions Attempted',
+            'Last Quiz Date'
+        ])
+        
+        # Write user data with performance metrics
+        for user in users:
+            # Get user's scores
+            scores = Score.query.filter_by(user_id=user.id).all()
+            
+            # Calculate performance metrics
+            total_quizzes = len(scores)
+            total_questions = sum(len(score.quiz.questions) for score in scores) if scores else 0
+            
+            if scores:
+                # Calculate average score percentage
+                total_score_percentage = 0
+                best_score_percentage = 0
+                last_quiz_date = None
+                
+                for score in scores:
+                    if score.quiz.questions:
+                        score_percentage = (score.score / len(score.quiz.questions)) * 100
+                        total_score_percentage += score_percentage
+                        best_score_percentage = max(best_score_percentage, score_percentage)
+                        
+                        if not last_quiz_date or score.date_taken > last_quiz_date:
+                            last_quiz_date = score.date_taken
+                
+                average_score = total_score_percentage / total_quizzes if total_quizzes > 0 else 0
+            else:
+                average_score = 0
+                best_score_percentage = 0
+                last_quiz_date = None
+            
+            # Write user row
+            writer.writerow([
+                user.id,
+                user.full_name or 'N/A',
+                user.email,
+                user.role,
+                user.qualification or 'N/A',
+                user.date_of_birth.strftime('%Y-%m-%d') if user.date_of_birth else 'N/A',
+                total_quizzes,
+                round(average_score, 2),
+                round(best_score_percentage, 2),
+                total_questions,
+                last_quiz_date.strftime('%Y-%m-%d %H:%M:%S') if last_quiz_date else 'N/A'
+            ])
+        
+        temp_file.close()
+        
+        # Return the file for download
+        return send_file(
+            temp_file.name,
+            as_attachment=True,
+            download_name=f'user_performance_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
+            mimetype='text/csv'
+        )
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to export data: {str(e)}"}), 500

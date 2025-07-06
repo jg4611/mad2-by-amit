@@ -133,3 +133,18 @@ export const updateUser = (id, data) =>
   });
 export const deleteUser = (id) =>
   apiFetch(`/delete_users/${id}`, { method: "DELETE" });
+
+// Export user performance data
+export const exportUserPerformance = () => {
+  const token = getToken();
+  if (!token) {
+    throw new Error("No token");
+  }
+  
+  return fetch(`${API_BASE}/api/export-user-performance`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+};

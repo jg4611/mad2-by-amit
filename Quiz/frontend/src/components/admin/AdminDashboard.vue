@@ -123,6 +123,11 @@
             <h3>Question Management</h3>
             <p>Create and manage quiz questions</p>
           </div>
+          <div class="nav-card" @click="navigateTo('/admin/users')">
+            <div class="nav-icon">📊</div>
+            <h3>Export Performance Data</h3>
+            <p>Download user performance reports in CSV format</p>
+          </div>
         </div>
 
         <!-- Recent Activity -->
