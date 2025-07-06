@@ -54,7 +54,31 @@
       </div>
       <div class="card shadow-lg border-0 mx-auto" style="max-width: 1400px">
         <div class="card-body">
-          <h5 class="fw-semibold mb-3">All Chapters</h5>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-semibold mb-0">All Chapters</h5>
+            <div class="d-flex align-items-center">
+              <div class="input-group" style="width: 300px;">
+                <span class="input-group-text bg-white border-end-0">
+                  <i class="bi bi-search text-muted"></i>
+                </span>
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Search chapters..."
+                  @input="filterChapters"
+                />
+              </div>
+              <button
+                v-if="searchQuery"
+                @click="clearSearch"
+                class="btn btn-outline-secondary btn-sm ms-2"
+                title="Clear search"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
           <div class="table-responsive">
             <table
               class="table table-hover align-middle bg-white rounded shadow-sm"
@@ -69,7 +93,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="chapter in chapters" :key="chapter.id">
+                <tr v-for="chapter in filteredChapters" :key="chapter.id">
                   <template v-if="editId !== chapter.id">
                     <td class="fw-semibold">{{ getSubjectName(chapter.subject_id) }}</td>
                     <td>{{ chapter.name }}</td>
@@ -134,8 +158,17 @@
                     </td>
                   </template>
                 </tr>
+                <tr v-if="filteredChapters.length === 0">
+                  <td colspan="5" class="text-center text-muted py-4">
+                    <i class="bi bi-search display-4 d-block mb-2"></i>
+                    {{ searchQuery ? 'No chapters found matching your search.' : 'No chapters available.' }}
+                  </td>
+                </tr>
               </tbody>
             </table>
+          </div>
+          <div v-if="searchQuery && filteredChapters.length > 0" class="text-muted small mt-2">
+            Showing {{ filteredChapters.length }} of {{ chapters.length }} chapters
           </div>
         </div>
       </div>
@@ -144,7 +177,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import {
   getChapters,
   createChapter,
@@ -159,6 +192,25 @@ const subjects = ref([]);
 const newChapter = ref({ name: "", description: "", subject_id: "" });
 const editId = ref(null);
 const editChapterData = ref({ name: "", description: "", subject_id: "" });
+const searchQuery = ref("");
+
+// Computed property for filtered chapters
+const filteredChapters = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return chapters.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return chapters.value.filter(chapter => {
+    const subjectName = getSubjectName(chapter.subject_id).toLowerCase();
+    const chapterName = chapter.name.toLowerCase();
+    const description = (chapter.description || '').toLowerCase();
+    
+    return subjectName.includes(query) ||
+           chapterName.includes(query) ||
+           description.includes(query);
+  });
+});
 
 const fetchChapters = async () => {
   chapters.value = await getChapters();
@@ -198,9 +250,13 @@ const getSubjectName = (id) => {
   return subj ? subj.name : "Unknown";
 };
 
+const clearSearch = () => {
+  searchQuery.value = "";
+};
+
 onMounted(() => {
-  fetchSubjects();
   fetchChapters();
+  fetchSubjects();
 });
 </script>
 

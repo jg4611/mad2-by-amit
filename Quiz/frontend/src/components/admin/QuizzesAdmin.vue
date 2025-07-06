@@ -89,7 +89,31 @@
       </div>
       <div class="card shadow-lg border-0 mx-auto" style="max-width: 1400px">
         <div class="card-body">
-          <h5 class="fw-semibold mb-3">All Quizzes</h5>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-semibold mb-0">All Quizzes</h5>
+            <div class="d-flex align-items-center">
+              <div class="input-group" style="width: 300px;">
+                <span class="input-group-text bg-white border-end-0">
+                  <i class="bi bi-search text-muted"></i>
+                </span>
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  class="form-control border-start-0"
+                  placeholder="Search quizzes..."
+                  @input="filterQuizzes"
+                />
+              </div>
+              <button
+                v-if="searchQuery"
+                @click="clearSearch"
+                class="btn btn-outline-secondary btn-sm ms-2"
+                title="Clear search"
+              >
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
           <div class="table-responsive">
             <table
               class="table table-hover align-middle bg-white rounded shadow-sm"
@@ -107,7 +131,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="quiz in quizzes" :key="quiz.id">
+                <tr v-for="quiz in filteredQuizzes" :key="quiz.id">
                   <template v-if="editId !== quiz.id">
                     <td class="fw-semibold">{{ quiz.title }}</td>
                     <td>{{ getSubjectNameFromChapter(quiz.chapter_id) }}</td>
@@ -227,8 +251,17 @@
                     </td>
                   </template>
                 </tr>
+                <tr v-if="filteredQuizzes.length === 0">
+                  <td colspan="8" class="text-center text-muted py-4">
+                    <i class="bi bi-search display-4 d-block mb-2"></i>
+                    {{ searchQuery ? 'No quizzes found matching your search.' : 'No quizzes available.' }}
+                  </td>
+                </tr>
               </tbody>
             </table>
+          </div>
+          <div v-if="searchQuery && filteredQuizzes.length > 0" class="text-muted small mt-2">
+            Showing {{ filteredQuizzes.length }} of {{ quizzes.length }} quizzes
           </div>
         </div>
       </div>
@@ -263,6 +296,7 @@ const newQuiz = ref({
 });
 const editId = ref(null);
 const editQuizData = ref({});
+const searchQuery = ref("");
 
 const fetchQuizzes = async () => {
   quizzes.value = await getQuizzes();
@@ -459,6 +493,29 @@ const toggleQuizHandler = async (id) => {
     console.error("Error toggling quiz:", error);
     alert("Error toggling quiz status. Please try again.");
   }
+};
+
+// Computed property for filtered quizzes
+const filteredQuizzes = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return quizzes.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return quizzes.value.filter(quiz => {
+    const matchesTitle = quiz.title.toLowerCase().includes(query);
+    const matchesSubject = getSubjectNameFromChapter(quiz.chapter_id).toLowerCase().includes(query);
+    const matchesChapter = getChapterName(quiz.chapter_id).toLowerCase().includes(query);
+    const matchesStart = formatDisplayDateTime(quiz.start_datetime).toLowerCase().includes(query);
+    const matchesEnd = formatDisplayDateTime(quiz.end_datetime).toLowerCase().includes(query);
+    const matchesStatus = getStatusBadge(quiz.status).text.toLowerCase().includes(query);
+
+    return matchesTitle || matchesSubject || matchesChapter || matchesStart || matchesEnd || matchesStatus;
+  });
+});
+
+const clearSearch = () => {
+  searchQuery.value = "";
 };
 
 // Temporary test function to debug delete issue

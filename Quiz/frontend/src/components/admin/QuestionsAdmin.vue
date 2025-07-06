@@ -220,7 +220,32 @@
       <!-- Existing Questions Table -->
       <div class="card shadow-lg border-0 mx-auto" style="max-width: 1400px">
         <div class="card-body">
-          <h5 class="fw-semibold mb-3">All Questions</h5>
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-semibold mb-0">All Questions</h5>
+            <div class="d-flex align-items-center gap-2">
+              <div class="input-group" style="width: 300px;">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  class="form-control"
+                  placeholder="Search questions, quiz, subject, chapter..."
+                  @input="onSearchInput"
+                />
+                <button
+                  v-if="searchQuery"
+                  @click="clearSearch"
+                  class="btn btn-outline-secondary"
+                  type="button"
+                >
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+              <span v-if="searchQuery" class="text-muted small">
+                {{ filteredQuestions.length }} of {{ questions.length }} questions
+              </span>
+            </div>
+          </div>
+          
           <div class="table-responsive">
             <table
               class="table table-hover align-middle bg-white rounded shadow-sm"
@@ -238,7 +263,21 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="question in questions" :key="question.id">
+                <tr v-if="filteredQuestions.length === 0">
+                  <td colspan="8" class="text-center py-4">
+                    <div v-if="searchQuery" class="text-muted">
+                      <i class="bi bi-search fs-1 d-block mb-2"></i>
+                      <p class="mb-0">No questions found matching "{{ searchQuery }}"</p>
+                      <small>Try adjusting your search terms</small>
+                    </div>
+                    <div v-else class="text-muted">
+                      <i class="bi bi-question-circle fs-1 d-block mb-2"></i>
+                      <p class="mb-0">No questions available</p>
+                      <small>Create your first question above</small>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-for="question in filteredQuestions" :key="question.id">
                   <template v-if="editId !== question.id">
                     <td class="fw-semibold">{{ getQuizTitle(question.quiz_id) }}</td>
                     <td>{{ getSubjectNameFromQuiz(question.quiz_id) }}</td>
@@ -407,6 +446,24 @@ const editQuestionData = ref({
   option_d: "",
   correct_answer: "A",
   difficulty: "easy",
+});
+
+const searchQuery = ref("");
+
+const filteredQuestions = computed(() => {
+  return questions.value.filter(question => {
+    const matchesQuiz = getQuizTitle(question.quiz_id).toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchesSubject = getSubjectNameFromQuiz(question.quiz_id).toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchesChapter = getChapterNameFromQuiz(question.quiz_id).toLowerCase().includes(searchQuery.value.toLowerCase());
+    const matchesQuestionText = question.question_text.toLowerCase().includes(searchQuery.value.toLowerCase());
+
+    return (
+      matchesQuiz ||
+      matchesSubject ||
+      matchesChapter ||
+      matchesQuestionText
+    );
+  });
 });
 
 const filteredChapters = computed(() => {
@@ -634,6 +691,15 @@ const getDifficultyBadge = (difficulty) => {
     hard: { class: "badge bg-danger", text: "Hard" },
   };
   return difficultyMap[difficulty] || { class: "badge bg-secondary", text: "Unknown" };
+};
+
+const onSearchInput = () => {
+  // This function is called by the input event, but the searchQuery is reactive.
+  // No explicit action needed here, as the filtering is handled by computed property.
+};
+
+const clearSearch = () => {
+  searchQuery.value = "";
 };
 
 onMounted(() => {

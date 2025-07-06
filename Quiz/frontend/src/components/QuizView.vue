@@ -29,14 +29,48 @@
             <p>Select a quiz to begin your assessment</p>
           </div>
           
+          <!-- Search Section -->
+          <div class="search-section">
+            <div class="search-container">
+              <div class="search-input-group">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  class="search-input"
+                  placeholder="Search quizzes, subjects, chapters..."
+                  @input="onSearchInput"
+                />
+                <button
+                  v-if="searchQuery"
+                  @click="clearSearch"
+                  class="search-clear-btn"
+                  type="button"
+                >
+                  ✕
+                </button>
+              </div>
+              <div v-if="searchQuery" class="search-results-info">
+                <span class="search-count">{{ filteredQuizzes.length }} of {{ quizzes.length }} quizzes</span>
+              </div>
+            </div>
+          </div>
+          
           <div class="quiz-list">
-            <div v-if="quizzes.length === 0" class="loading-state">
+            <div v-if="filteredQuizzes.length === 0 && searchQuery" class="no-search-results">
+              <div class="no-results-icon">🔍</div>
+              <h3>No quizzes found</h3>
+              <p>No quizzes match "{{ searchQuery }}"</p>
+              <button @click="clearSearch" class="btn btn-outline-primary btn-sm">
+                Clear Search
+              </button>
+            </div>
+            <div v-else-if="filteredQuizzes.length === 0" class="loading-state">
               <div class="loading-spinner">⏳</div>
               <p>Loading quizzes...</p>
             </div>
             <div 
               v-else
-              v-for="quiz in quizzes" 
+              v-for="quiz in filteredQuizzes" 
               :key="quiz.id"
               class="quiz-item"
               :class="{ 
@@ -323,10 +357,31 @@ const showResults = ref(false);
 const correctAnswers = ref(0);
 const completedQuizzes = ref([]);
 const quizHistory = ref([]);
+const searchQuery = ref("");
 let timer = null;
 
 const activeQuizzes = computed(() => {
   return quizzes.value.filter(quiz => quiz.status === 'active');
+});
+
+const filteredQuizzes = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return quizzes.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  
+  return quizzes.value.filter(quiz => {
+    const quizTitle = quiz.title.toLowerCase();
+    const subjectName = getSubjectNameFromChapter(quiz.chapter_id).toLowerCase();
+    const chapterName = getChapterName(quiz.chapter_id).toLowerCase();
+    
+    return (
+      quizTitle.includes(query) ||
+      subjectName.includes(query) ||
+      chapterName.includes(query)
+    );
+  });
 });
 
 const currentQuestion = computed(() => {
@@ -634,7 +689,14 @@ const exitQuiz = () => {
   }
 };
 
+const onSearchInput = () => {
+  // This function is called by the input event, but the searchQuery is reactive.
+  // No explicit action needed here, as the filtering is handled by computed property.
+};
 
+const clearSearch = () => {
+  searchQuery.value = "";
+};
 
 onMounted(() => {
   if (!localStorage.getItem("token")) {
@@ -801,6 +863,70 @@ onUnmounted(() => {
 .section-header p {
   font-size: 1.1rem;
   color: #718096;
+}
+
+/* Search Section */
+.search-section {
+  margin-bottom: 2rem;
+}
+
+.search-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.search-input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+  padding-right: 2.5rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  background: white;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+}
+
+.search-clear-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #4a5568;
+}
+
+.search-results-info {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-count {
+  font-size: 0.8rem;
+  color: #718096;
+  font-weight: 500;
 }
 
 .quiz-list {
@@ -1559,6 +1685,30 @@ onUnmounted(() => {
 }
 
 .no-quizzes p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.no-search-results {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #718096;
+}
+
+.no-results-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.no-search-results h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+}
+
+.no-search-results p {
   font-size: 0.9rem;
   line-height: 1.5;
 }
