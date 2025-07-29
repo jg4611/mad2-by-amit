@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, render_template, send_file
 from flask_jwt_extended import create_access_token, decode_token, get_jwt, jwt_required
 from models import db, bcrypt, Subject, Quiz, Question, Score, User, Chapter
 from rbac import role_required
+from email_service import send_registration_confirmation, send_new_quiz_notification
 import datetime
 import csv
 import io
@@ -47,6 +48,10 @@ def register():
     new_user.set_password(data['password'])  # Hash the password
     db.session.add(new_user)
     db.session.commit()
+    
+    # Send registration confirmation email
+    send_registration_confirmation(new_user)
+    
     return jsonify({"message": "User registered successfully"}), 201
 
 # Render login form
@@ -133,6 +138,15 @@ def create_quiz():
         )
         db.session.add(quiz)
         db.session.commit()
+
+        # Get the chapter to include subject information in the notification
+        chapter = Chapter.query.get(quiz.chapter_id)
+        subject = Subject.query.get(chapter.subject_id) if chapter else None
+        subject_name = subject.name if subject else "General"
+
+        # Send notification to all users about the new quiz
+        send_new_quiz_notification(quiz.title, subject_name)
+
         return jsonify({
             "message": "Quiz created",
             "quiz": {

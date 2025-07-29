@@ -3,12 +3,27 @@ from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from models import db, User, bcrypt
-from routes import routes
+from flask_mail import Mail
+from celery_config import init_celery
 import os
+from dotenv import load_dotenv
+from email_service import init_mail
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 # Enable CORS for all routes and all origins
 CORS(app)
+
+# Initialize Celery
+celery = init_celery(app)
+
+# Initialize Flask-Mail
+init_mail(app)
+
+# Import routes after app is created to avoid circular imports
+from routes import routes
 
 # App configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///quiz_master2.db'
